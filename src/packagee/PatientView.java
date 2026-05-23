@@ -16,7 +16,7 @@ import javax.swing.table.DefaultTableModel;
  * @author jjlora
  * @author edangulo
  */
-public class NewJFrame1 extends javax.swing.JFrame {
+public class PatientView extends javax.swing.JFrame {
 
     private int x, y;
     private User user;
@@ -25,7 +25,7 @@ public class NewJFrame1 extends javax.swing.JFrame {
     private ArrayList<Appointment> appointments;
     private ArrayList<Hospitalization> hospitalizations;
 
-    public NewJFrame1(User user,Patient patient, ArrayList<User> users, ArrayList<Appointment>appointments, ArrayList<Hospitalization> hospitalizations) {
+    public PatientView(User user,Patient patient, ArrayList<User> users, ArrayList<Appointment>appointments, ArrayList<Hospitalization> hospitalizations) {
         initComponents();
         this.user = user;
         this.users = users;
@@ -819,13 +819,13 @@ public class NewJFrame1 extends javax.swing.JFrame {
     }//GEN-LAST:event_PatientView_ModInfo_SAVE_ButtonActionPerformed
 
     private void PatientView_LogOut_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientView_LogOut_ButtonActionPerformed
-        NewJFrame login = new NewJFrame();
+        LoginView login = new LoginView();
         this.setVisible(false);
         login.setVisible(true);
     }//GEN-LAST:event_PatientView_LogOut_ButtonActionPerformed
 
     private void PatientView_Back_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientView_Back_ButtonActionPerformed
-        NewJFrame11 admin = new NewJFrame11(user, users,hospitalizations, appointments);
+        AdminView admin = new AdminView(user, users,hospitalizations, appointments);
         this.setVisible(false);
         admin.setVisible(true);
     }//GEN-LAST:event_PatientView_Back_ButtonActionPerformed
