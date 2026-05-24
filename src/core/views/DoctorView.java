@@ -11,13 +11,13 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import javax.swing.table.DefaultTableModel;
 import core.models.Administrator;
-import core.controllers.Appointment;
+import core.models.Appointment;
 import core.models.AppointmentStatus;
 import core.models.Doctor;
-import core.controllers.Hospitalization;
+import core.models.Hospitalization;
 import core.models.HospitalizationStatus;
 import core.models.Patient;
-import core.controllers.Prescription;
+import core.models.Prescription;
 import core.models.RoomType;
 import core.models.Specialty;
 import core.models.User;
@@ -31,18 +31,12 @@ public class DoctorView extends javax.swing.JFrame {
 
     private int x, y;
     private User user;
-    private ArrayList<User> users;
-    private ArrayList<Hospitalization>hospitalizations;
-    private ArrayList<Appointment>appointments;
     private Doctor doctor;
     private Patient patient;
-    public DoctorView(User user,Doctor doc, ArrayList<User> users,ArrayList<Hospitalization> hospitalizations,ArrayList<Appointment> appointments) {
+    public DoctorView(User user, Doctor doc) {
         initComponents();
         this.user = user;
-        this.users =users;
         this.doctor = doc;
-        this.hospitalizations = hospitalizations;
-        this.appointments = appointments;
         if (user instanceof Administrator)
             jButton11.setVisible(true);
         else    
@@ -60,8 +54,8 @@ public class DoctorView extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        panelRound1 = new core.controllers.PanelRound();
-        panelRound2 = new core.controllers.PanelRound();
+        panelRound1 = new core.views.PanelRound();
+        panelRound2 = new core.views.PanelRound();
         jButton1 = new javax.swing.JButton();
         jLabel1 = new javax.swing.JLabel();
         jButton11 = new javax.swing.JButton();
@@ -1151,18 +1145,13 @@ public class DoctorView extends javax.swing.JFrame {
         String comPassword = jTextField10.getText();
         Specialty specialty = Specialty.valueOf(spec.replaceAll(" &", "").replaceAll(" ", "_"));
         if (password.equals(comPassword)) {
-            for(User doc: this.users){
-                if (doctor.getId() == doc.getId()) {
-                    doctor.setFirstname(firstname);
-                    doctor.setLastname(lastname);
-                    doctor.setPassword(password);
-                    doctor.setUsername(username);
-                    doctor.setAssignedOffice(assignedOffice);
-                    doctor.setLicenceNumber(licenseNumber);
-                    doctor.setSpecialty(specialty);
-                    
-                }
-            }
+            doctor.setFirstname(firstname);
+            doctor.setLastname(lastname);
+            doctor.setPassword(password);
+            doctor.setUsername(username);
+            doctor.setAssignedOffice(assignedOffice);
+            doctor.setLicenceNumber(licenseNumber);
+            doctor.setSpecialty(specialty);
         }
     }//GEN-LAST:event_jButton9ActionPerformed
 
@@ -1173,47 +1162,38 @@ public class DoctorView extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton12ActionPerformed
 
     private void jButton11ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton11ActionPerformed
-        AdminView admin = new AdminView(user,users,hospitalizations, appointments);
+        AdminView admin = new AdminView(user);
         this.setVisible(false);
         admin.setVisible(true);
     }//GEN-LAST:event_jButton11ActionPerformed
 
     private void jButton13ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton13ActionPerformed
         if (jRadioButton5.isSelected()) {
-            for(Hospitalization hosp : this.hospitalizations){
-                if (jComboBox6.getItemAt(jComboBox6.getSelectedIndex()) == hosp.getId()) {
-                    hosp.setStatus(HospitalizationStatus.CANCELED);
-                }
+            Hospitalization hosp = core.models.DataStore.getInstance().findHospitalizationById(jComboBox6.getItemAt(jComboBox6.getSelectedIndex()));
+            if (hosp != null) {
+                hosp.setStatus(HospitalizationStatus.CANCELED);
             }
         }
     }//GEN-LAST:event_jButton13ActionPerformed
 
     private void jButton6ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton6ActionPerformed
         if (jRadioButton6.isSelected()) {
-            for(User user: this.users){
-                if (user instanceof Patient) {
-                    if (jComboBox8.getItemAt(jComboBox8.getSelectedIndex()).equals(user.getId())) {
-                        if (this.user instanceof Administrator) {
-                            String reason = jTextArea9.getText();
-                            String observations = jTextArea1.getText();
-                            String entDate = jTextField21.getText();
-                            LocalDate entryDate = LocalDate.of(Integer.parseInt(entDate.substring(0, 4)), Integer.parseInt(entDate.substring(5, 7)), Integer.parseInt(entDate.substring(8)));
-                            this.hospitalizations.add(new Hospitalization("asdfasdf", (Patient)user, this.doctor, LocalDate.MAX, reason, RoomType.IMC, observations, HospitalizationStatus.ONGOING));
-                        }
-                    }
-                }
+            long patientId = Long.parseLong(jComboBox8.getItemAt(jComboBox8.getSelectedIndex()));
+            Patient p = core.models.DataStore.getInstance().findPatientById(patientId);
+            if (p != null) {
+                String hospId = core.models.DataStore.getInstance().generateHospitalizationId(p.getId());
+                String reason = jTextArea9.getText();
+                String observations = jTextArea1.getText();
+                Hospitalization hosp = new Hospitalization(hospId, p, this.doctor, LocalDate.now(), reason, RoomType.IMC, observations, HospitalizationStatus.ONGOING);
+                core.models.DataStore.getInstance().addHospitalization(hosp);
             }
         }
     }//GEN-LAST:event_jButton6ActionPerformed
 
     private void jButton8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton8ActionPerformed
         // TODO add your handling code here:
-        Patient p = null;
-        for (User u : this.users) {
-            if (u.getId() == Long.parseLong(jComboBox5.getItemAt(jComboBox5.getSelectedIndex()))) {
-                p = (Patient) u;
-            }
-        }
+        long patientId = Long.parseLong(jComboBox5.getItemAt(jComboBox5.getSelectedIndex()));
+        Patient p = core.models.DataStore.getInstance().findPatientById(patientId);
         
         DefaultTableModel model = (DefaultTableModel) jTable3.getModel();
         model.setRowCount(0);
@@ -1235,10 +1215,9 @@ public class DoctorView extends javax.swing.JFrame {
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
         String idAppointment = jComboBox2.getItemAt(jComboBox2.getSelectedIndex());
-        for(Appointment apo: this.appointments){
-            if(apo.getId() == idAppointment){
-                apo.setStatus(AppointmentStatus.PENDING);
-            }
+        Appointment apo = core.models.DataStore.getInstance().findAppointmentById(idAppointment);
+        if (apo != null) {
+            apo.setStatus(AppointmentStatus.PENDING);
         }
     }//GEN-LAST:event_jButton3ActionPerformed
 
@@ -1248,14 +1227,13 @@ public class DoctorView extends javax.swing.JFrame {
         String observations = jTextArea6.getText();
         String recommendedTrea = jTextArea7.getText();
         String followUp = jTextArea8.getText();
-        for(Appointment apo: this.appointments){
-            if(apo.getId() == idAppointment){
-                apo.setStatus(AppointmentStatus.CANCELED);
-                apo.setDiagnosis(diagnosis);
-                apo.setFollowUp(followUp);
-                apo.setRecommendedTreatment(recommendedTrea);
-                apo.setObservations(observations);
-            }
+        Appointment apo = core.models.DataStore.getInstance().findAppointmentById(idAppointment);
+        if (apo != null) {
+            apo.setStatus(AppointmentStatus.COMPLETED);
+            apo.setDiagnosis(diagnosis);
+            apo.setFollowUp(followUp);
+            apo.setRecommendedTreatment(recommendedTrea);
+            apo.setObservations(observations);
         }
     }//GEN-LAST:event_jButton5ActionPerformed
 
@@ -1277,24 +1255,19 @@ public class DoctorView extends javax.swing.JFrame {
         int frecuency = Integer.parseInt(jTextField27.getText());
         
         model.addRow(new Object[]{appointmentId, medicationName, jTextField25.getText(), administrationRoute, "" + tratementduration, aditionalIformation, "" + frecuency});
-        for(Appointment apo: this.appointments){
-            if (apo.getId().equals(appointmentId)){
-                apo.addPrescription(new Prescription(apo, medicationName, dose, administrationRoute, tratementduration, aditionalIformation, frecuency));
-            }
+        Appointment apo = core.models.DataStore.getInstance().findAppointmentById(appointmentId);
+        if (apo != null) {
+            apo.addPrescription(new Prescription(apo, medicationName, dose, administrationRoute, tratementduration, aditionalIformation, frecuency));
         }
     }//GEN-LAST:event_jButton7ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         String appointmentId = jComboBox3.getItemAt(jComboBox3.getSelectedIndex());
-        Appointment appointment = null;
-        for(Appointment apo: this.appointments){
-            if (apo.getId().equals(appointmentId)) {
-                appointment = apo;
-            }
+        Appointment appointment = core.models.DataStore.getInstance().findAppointmentById(appointmentId);
+        if (appointment != null) {
+            appointment.setDatetime(appointment.getDatetime().with(LocalTime.of(Integer.parseInt(jTextField13.getText().substring(0, 2)), Integer.parseInt(jTextField13.getText().substring(3)))));
+            appointment.setReason(appointment.getReason() + " | Reagendado: " + jTextField14.getText());
         }
-        appointment.getDatetime().with(LocalTime.of(Integer.parseInt(jTextField13.getText().substring(0, 2)),Integer.parseInt(jTextField13.getText().substring(3))));
-        String reasonChangeTime = jTextField14.getText();
-        appointment.setReason(reasonChangeTime);
     }//GEN-LAST:event_jButton4ActionPerformed
 
 
@@ -1403,7 +1376,7 @@ public class DoctorView extends javax.swing.JFrame {
     private javax.swing.JTextField jTextField7;
     private javax.swing.JTextField jTextField8;
     private javax.swing.JTextField jTextField9;
-    private core.controllers.PanelRound panelRound1;
-    private core.controllers.PanelRound panelRound2;
+    private core.views.PanelRound panelRound1;
+    private core.views.PanelRound panelRound2;
     // End of variables declaration//GEN-END:variables
 }

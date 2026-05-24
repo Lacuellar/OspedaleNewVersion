@@ -12,10 +12,10 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import javax.swing.table.DefaultTableModel;
 import core.models.Administrator;
-import core.controllers.Appointment;
+import core.models.Appointment;
 import core.models.AppointmentStatus;
 import core.models.Doctor;
-import core.controllers.Hospitalization;
+import core.models.Hospitalization;
 import core.models.Patient;
 import core.models.RoomType;
 import core.models.Specialty;
@@ -30,18 +30,12 @@ public class PatientView extends javax.swing.JFrame {
 
     private int x, y;
     private User user;
-    private ArrayList<User> users;
     private Patient patient;
-    private ArrayList<Appointment> appointments;
-    private ArrayList<Hospitalization> hospitalizations;
 
-    public PatientView(User user,Patient patient, ArrayList<User> users, ArrayList<Appointment>appointments, ArrayList<Hospitalization> hospitalizations) {
+    public PatientView(User user, Patient patient) {
         initComponents();
         this.user = user;
-        this.users = users;
         this.patient = patient;
-        this.hospitalizations = hospitalizations;
-        this.appointments = appointments;
         if (user instanceof Administrator) {
             PatientView_Back_Button.setVisible(true);
         } else {
@@ -60,8 +54,8 @@ public class PatientView extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        panelRound1 = new core.controllers.PanelRound();
-        panelRound2 = new core.controllers.PanelRound();
+        panelRound1 = new core.views.PanelRound();
+        panelRound2 = new core.views.PanelRound();
         PatientView_Close_Button = new javax.swing.JButton();
         PatientView_Label = new javax.swing.JLabel();
         PatientView_Back_Button = new javax.swing.JButton();
@@ -790,10 +784,9 @@ public class PatientView extends javax.swing.JFrame {
 
     private void ReqCan_CancelAppointment_Cancel_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ReqCan_CancelAppointment_Cancel_ButtonActionPerformed
         String idAppointment = ReqCan_CancelAppointment_IDApp_Dropdown.getItemAt(ReqCan_CancelAppointment_IDApp_Dropdown.getSelectedIndex());
-        for(Appointment ap: this.appointments){
-            if (ap.getId().equals(idAppointment)) {
-                ap.setStatus(AppointmentStatus.CANCELED);
-            }
+        Appointment ap = core.models.DataStore.getInstance().findAppointmentById(idAppointment);
+        if (ap != null) {
+            ap.setStatus(AppointmentStatus.CANCELED);
         }
     }//GEN-LAST:event_ReqCan_CancelAppointment_Cancel_ButtonActionPerformed
 
@@ -810,20 +803,15 @@ public class PatientView extends javax.swing.JFrame {
         String comPassword = PatientView_ModInfo_EnterPasswordConf_Field.getText();
         LocalDate birthdate = LocalDate.of(Integer.parseInt(birth.substring(0, 4)), Integer.parseInt(birth.substring(5, 7)), Integer.parseInt(birth.substring(8)));
         if (comPassword.equals(password)) {
-            for (User user : this.users) {
-                if (user.getId() == this.user.getId() && user instanceof Patient) {
-                    Patient userTemp = (Patient) user;
-                    userTemp.setAddress(address);
-                    userTemp.setBirthdate(birthdate);
-                    userTemp.setEmail(email);
-                    userTemp.setFirstname(firstname);
-                    userTemp.setGender(gender);
-                    userTemp.setLastname(lastname);
-                    userTemp.setPassword(password);
-                    userTemp.setPhone(phone);
-                    userTemp.setUsername(username);
-                }
-            }
+            this.patient.setAddress(address);
+            this.patient.setBirthdate(birthdate);
+            this.patient.setEmail(email);
+            this.patient.setFirstname(firstname);
+            this.patient.setGender(gender);
+            this.patient.setLastname(lastname);
+            this.patient.setPassword(password);
+            this.patient.setPhone(phone);
+            this.patient.setUsername(username);
         }
 
     }//GEN-LAST:event_PatientView_ModInfo_SAVE_ButtonActionPerformed
@@ -835,7 +823,7 @@ public class PatientView extends javax.swing.JFrame {
     }//GEN-LAST:event_PatientView_LogOut_ButtonActionPerformed
 
     private void PatientView_Back_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientView_Back_ButtonActionPerformed
-        AdminView admin = new AdminView(user, users,hospitalizations, appointments);
+        AdminView admin = new AdminView(user);
         this.setVisible(false);
         admin.setVisible(true);
     }//GEN-LAST:event_PatientView_Back_ButtonActionPerformed
@@ -860,10 +848,8 @@ public class PatientView extends javax.swing.JFrame {
         ReqCan_AppType_Dropdown.removeAllItems();
 
         ReqCan_AppType_Dropdown.addItem("Select one");
-        for (User doc : this.users) {
-            if (doc instanceof Doctor) {
-                ReqCan_AppType_Dropdown.addItem(doc.getFirstname() + " " + doc.getLastname());
-            }
+        for (Doctor doc : core.models.DataStore.getInstance().getDoctors()) {
+            ReqCan_AppType_Dropdown.addItem(doc.getFirstname() + " " + doc.getLastname());
         }
     }//GEN-LAST:event_ReqCan_ReqMedApp_Specialty_ButtonReqCan_ReqMedApp_Doctor_ButtonActionPerformed
 
@@ -874,14 +860,11 @@ public class PatientView extends javax.swing.JFrame {
         LocalDateTime Finally = LocalDateTime.of(appointmentDate, appointmentHour);
         String appointmentReason = ReqCan_ReqMedApp_AppReason_Field.getText();
         long docId = Long.parseLong(ReqCan_AppType_Dropdown.getItemAt(ReqCan_AppType_Dropdown.getSelectedIndex()));
-        Doctor doctor = null;
-        for(User use:this.users){
-            if (use.getId() == docId) {
-                doctor = (Doctor) use;
-            }
-        }
+        Doctor doctor = core.models.DataStore.getInstance().findDoctorById(docId);
         boolean appointmentType = (ReqCan_ReqMedApp_AppType_Dropdown.getSelectedIndex() == 0 ? null : (ReqCan_ReqMedApp_AppType_Dropdown.getSelectedIndex() == 2 ));
-        this.appointments.add(new Appointment(appointDate, patient, doctor, doctor.getSpecialty(), Finally, appointDate, appointmentType));
+        String appointmentId = core.models.DataStore.getInstance().generateAppointmentId(this.patient.getId());
+        Appointment newAppointment = new Appointment(appointmentId, patient, doctor, doctor.getSpecialty(), Finally, appointmentReason, appointmentType);
+        core.models.DataStore.getInstance().addAppointment(newAppointment);
     }//GEN-LAST:event_ReqCan_ReqMedApp_Create_ButtonActionPerformed
 
 
@@ -898,17 +881,14 @@ public class PatientView extends javax.swing.JFrame {
     private void ReqCan_ReqHosp_Create_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ReqCan_ReqHosp_Create_ButtonActionPerformed
         String hospitalizationReason = ReqCan_ReqHospReason_Field.getText();
         long idDoctor = Long.parseLong(ReqCan_Hosp_AttendingDoctor_Dropdown.getItemAt(ReqCan_Hosp_AttendingDoctor_Dropdown.getSelectedIndex()));
-        Doctor doc = null;
-        for(User use: this.users){
-            if (use.id  == idDoctor ){
-                doc = (Doctor) use;
-            }
-        }
+        Doctor doc = core.models.DataStore.getInstance().findDoctorById(idDoctor);
         LocalDate stimateDate = LocalDate.of(Integer.parseInt(ReqCan_Hosp_EstDateAdmission_Field.getText().substring(0, 4)),Integer.parseInt(ReqCan_Hosp_EstDateAdmission_Field.getText().substring(5, 7)), Integer.parseInt(ReqCan_Hosp_EstDateAdmission_Field.getText().substring(8)));
         
         RoomType desireRoom = RoomType.valueOf(ReqCan_Hosp_DesiredRoomType_Dropdown.getItemAt(ReqCan_Hosp_DesiredRoomType_Dropdown.getSelectedIndex()).toUpperCase());
         String observations = ReqCan_Hosp_Observations_Field.getText();
-        this.hospitalizations.add(new Hospitalization(observations, this.patient, doc, stimateDate, observations, desireRoom, observations));
+        String hospId = core.models.DataStore.getInstance().generateHospitalizationId(this.patient.getId());
+        Hospitalization hosp = new Hospitalization(hospId, this.patient, doc, stimateDate, hospitalizationReason, desireRoom, observations);
+        core.models.DataStore.getInstance().addHospitalization(hosp);
     }//GEN-LAST:event_ReqCan_ReqHosp_Create_ButtonActionPerformed
 
     private void ReqCan_AppType_DropdownActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ReqCan_AppType_DropdownActionPerformed
@@ -987,7 +967,7 @@ public class PatientView extends javax.swing.JFrame {
     private javax.swing.JSeparator ReqCan_Separator;
     private javax.swing.JSeparator ReqHosp_CanApp_Separator;
     private javax.swing.JTable jTable1;
-    private core.controllers.PanelRound panelRound1;
-    private core.controllers.PanelRound panelRound2;
+    private core.views.PanelRound panelRound1;
+    private core.views.PanelRound panelRound2;
     // End of variables declaration//GEN-END:variables
 }

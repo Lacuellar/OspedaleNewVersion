@@ -14,9 +14,9 @@ import java.time.Month;
 import java.util.ArrayList;
 import javax.swing.UIManager;
 import core.models.Administrator;
-import core.controllers.Appointment;
+import core.models.Appointment;
 import core.models.Doctor;
-import core.controllers.Hospitalization;
+import core.models.Hospitalization;
 import core.models.Patient;
 import core.models.User;
 
@@ -28,17 +28,11 @@ import core.models.User;
 public class LoginView extends javax.swing.JFrame {
 
     private int x, y;
-    private ArrayList<User> users;
-    private ArrayList<Hospitalization> hospitalizations;
-    private ArrayList<Appointment> appointments;
 
     public LoginView() {
         initComponents();
         this.setBackground(new Color(0, 0, 0, 0));
         this.setLocationRelativeTo(null);
-
-        this.users = new ArrayList<>();
-        this.users.add(new Administrator(0, "admin", "admin", "adnim", "admin123"));
     }
 
     /**
@@ -50,11 +44,11 @@ public class LoginView extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        panelRound1 = new core.controllers.PanelRound();
-        panelRound2 = new core.controllers.PanelRound();
+        panelRound1 = new core.views.PanelRound();
+        panelRound2 = new core.views.PanelRound();
         Close_Button = new javax.swing.JButton();
         Main_screen_tabs = new javax.swing.JTabbedPane();
-        Login_tab = new core.controllers.PanelRound();
+        Login_tab = new core.views.PanelRound();
         Login_label = new javax.swing.JLabel();
         Enter_username_field = new javax.swing.JTextField();
         Username_label = new javax.swing.JLabel();
@@ -422,33 +416,27 @@ public class LoginView extends javax.swing.JFrame {
         System.exit(0);
     }//GEN-LAST:event_Close_ButtonActionPerformed
 
-    private void Enter_buttonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Enter_buttonActionPerformed
+    private void Enter_buttonActionPerformed(java.awt.event.ActionEvent evt) {                                             
         // TODO add your handling code here:
-        User selectedUser = null;
-        for (User user : this.users) {
-            if (Enter_username_field.getText().equals(user.getUsername())) {
-                selectedUser = user;
-                if (selectedUser.getPassword().equals(Enter_password_field.getText())) {
-                    if (selectedUser instanceof Administrator ) {
-                        AdminView admin = new AdminView(selectedUser,users,hospitalizations, appointments);
-                        this.setVisible(false);
-                        admin.setVisible(true);
-                    }
-                    else if (selectedUser instanceof Doctor ) {
-                        DoctorView doctor = new DoctorView(selectedUser,(Doctor)selectedUser,users,hospitalizations,appointments);
-                        this.setVisible(false);
-                        doctor.setVisible(true);
-                    }
-                    else {
-                        PatientView patient = new PatientView(selectedUser,(Patient) selectedUser,users,appointments, hospitalizations);
-                        this.setVisible(false);
-                        patient.setVisible(true);
-                    }
-                }
+        User selectedUser = core.models.DataStore.getInstance().getUserByUsername(Enter_username_field.getText());
+        if (selectedUser != null && selectedUser.getPassword().equals(Enter_password_field.getText())) {
+            if (selectedUser instanceof Administrator ) {
+                AdminView admin = new AdminView(selectedUser);
+                this.setVisible(false);
+                admin.setVisible(true);
+            }
+            else if (selectedUser instanceof Doctor ) {
+                DoctorView doctor = new DoctorView(selectedUser, (Doctor)selectedUser);
+                this.setVisible(false);
+                doctor.setVisible(true);
+            }
+            else {
+                PatientView patient = new PatientView(selectedUser, (Patient) selectedUser);
+                this.setVisible(false);
+                patient.setVisible(true);
             }
         }
-
-    }//GEN-LAST:event_Enter_buttonActionPerformed
+    } //GEN-LAST:event_Enter_buttonActionPerformed
 
     private void PatientReg_Save_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientReg_Save_ButtonActionPerformed
         String firstname = Firstname_field.getText();
@@ -464,7 +452,8 @@ public class LoginView extends javax.swing.JFrame {
         String comPassword = PatientReg_Password_Confirmation_Field.getText();
         LocalDate birthdate = LocalDate.of(Integer.parseInt(birth.substring(0, 4)), Integer.parseInt(birth.substring(5, 7)), Integer.parseInt(birth.substring(8)));
         if (comPassword.equals(password)) {
-            users.add(new Patient(id, user, firstname, lastname, password, email, birthdate, gender, phone, address));
+            Patient patient = new Patient(id, user, firstname, lastname, password, email, birthdate, gender, phone, address);
+            core.models.DataStore.getInstance().addPatient(patient);
         }
         
     }//GEN-LAST:event_PatientReg_Save_ButtonActionPerformed
@@ -472,25 +461,6 @@ public class LoginView extends javax.swing.JFrame {
     private void PatientReg_Password_Confirmation_FieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientReg_Password_Confirmation_FieldActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_PatientReg_Password_Confirmation_FieldActionPerformed
-
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        System.setProperty("flatlaf.useNativeLibrary", "false");
-
-        try {
-            UIManager.setLookAndFeel(new FlatDarkLaf());
-        } catch (Exception ex) {
-            System.err.println("Failed to initialize LaF");
-        }
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new LoginView().setVisible(true);
-            }
-        });
-    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField Address_Field;
@@ -512,7 +482,7 @@ public class LoginView extends javax.swing.JFrame {
     private javax.swing.JTextField Lastname_field;
     private javax.swing.JLabel Lastname_label;
     private javax.swing.JLabel Login_label;
-    private core.controllers.PanelRound Login_tab;
+    private core.views.PanelRound Login_tab;
     private javax.swing.JTabbedPane Main_screen_tabs;
     private javax.swing.JLabel Password_label;
     private javax.swing.JTextField PatientReg_Password_Confirmation_Field;
@@ -526,7 +496,7 @@ public class LoginView extends javax.swing.JFrame {
     private javax.swing.JTextField Phone_Field;
     private javax.swing.JLabel Phone_Label;
     private javax.swing.JLabel Username_label;
-    private core.controllers.PanelRound panelRound1;
-    private core.controllers.PanelRound panelRound2;
+    private core.views.PanelRound panelRound1;
+    private core.views.PanelRound panelRound2;
     // End of variables declaration//GEN-END:variables
 }
