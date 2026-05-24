@@ -1,17 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package core.models;
 
 import java.util.ArrayList;
-import core.controllers.Appointment;
-import core.controllers.Hospitalization;
+import core.models.Appointment;
+import core.models.Hospitalization;
 
-/**
- *
- * @author edangulo
- */
 public class Doctor extends User {
     
     private Specialty specialty;
@@ -22,7 +14,8 @@ public class Doctor extends User {
 
     public Doctor(long id, String username, String firstname, String lastname, String password, Specialty specialty, String licenceNumber, String assignedOffice) {
         super(id, username, firstname, lastname, password);
-        hospitalizations = new ArrayList<>();
+        this.appointments = new ArrayList<>();
+        this.hospitalizations = new ArrayList<>();
         this.specialty = specialty;
         this.licenceNumber = licenceNumber;
         this.assignedOffice = assignedOffice;
@@ -50,5 +43,21 @@ public class Doctor extends User {
 
     public void setAssignedOffice(String assignedOffice) {
         this.assignedOffice = assignedOffice;
+    }
+
+    public String getLicenceNumber() {
+        return licenceNumber;
+    }
+
+    public String getAssignedOffice() {
+        return assignedOffice;
+    }
+
+    public ArrayList<Hospitalization> getHospitalizations() {
+        return hospitalizations;
+    }
+
+    public void addAppointment(Appointment appointment) {
+        this.appointments.add(appointment);
     }
 }

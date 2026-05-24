@@ -1,18 +1,10 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package core.models;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import core.controllers.Appointment;
-import core.controllers.Hospitalization;
+import core.models.Appointment;
+import core.models.Hospitalization;
 
-/**
- *
- * @author edangulo
- */
 public class Patient extends User {
     
     private String email;
@@ -64,5 +56,29 @@ public class Patient extends User {
         this.address = address;
         this.appointments = new ArrayList<>();
     }
-    
+
+    public String getEmail() {
+        return email;
+    }
+
+    public LocalDate getBirthdate() {
+        return birthdate;
+    }
+
+    public boolean getGender() {
+        return gender;
+    }
+
+    public long getPhone() {
+        return phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public Hospitalization getHospitalization() {
+        return hospitalization;
+    }
+
 }

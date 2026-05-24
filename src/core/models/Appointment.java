@@ -1,20 +1,13 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-package core.controllers;
+package core.models;
 
 import core.models.AppointmentStatus;
 import core.models.Doctor;
 import core.models.Patient;
+import core.models.Prescription;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import core.models.Specialty;
 
-/**
- *
- * @author edangulo
- */
 public class Appointment {
     
     private final String id;
@@ -51,6 +44,10 @@ public class Appointment {
         this.followUp = followUp;
     }
 
+    public void setDatetime(LocalDateTime datetime) {
+        this.datetime = datetime;
+    }
+
     public Appointment(String id, Patient patient, Doctor doctor, Specialty specialty, LocalDateTime datetime, String reason, boolean type) {
         this.id = id;
         this.patient = patient;
@@ -61,6 +58,8 @@ public class Appointment {
         this.type = type;
         this.status = AppointmentStatus.REQUESTED;
         this.prescriptions = new ArrayList<>();
+        patient.addAppointment(this);
+        doctor.addAppointment(this);
     }
 
     public void setStatus(AppointmentStatus status) {
@@ -98,5 +97,29 @@ public class Appointment {
     public boolean addPrescription(Prescription prescrip) {
         return this.prescriptions.add(prescrip);
     }
-    
+
+    public String getReason() {
+        return reason;
+    }
+
+    public ArrayList<Prescription> getPrescriptions() {
+        return prescriptions;
+    }
+
+    public String getDiagnosis() {
+        return diagnosis;
+    }
+
+    public String getObservations() {
+        return observations;
+    }
+
+    public String getRecommendedTreatment() {
+        return recommendedTreatment;
+    }
+
+    public String getFollowUp() {
+        return followUp;
+    }
+
 }

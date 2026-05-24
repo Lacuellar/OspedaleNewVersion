@@ -1,8 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-package core.controllers;
+package core.models;
 
 import core.models.Doctor;
 import core.models.Patient;
@@ -10,10 +6,6 @@ import java.time.LocalDate;
 import core.models.HospitalizationStatus;
 import core.models.RoomType;
 
-/**
- *
- * @author edangulo
- */
 public class Hospitalization {
     
     private final String id;
@@ -57,5 +49,37 @@ public class Hospitalization {
         this.observations = observations;
         this.status = hopsS;
     }
-    
+
+    public Patient getPatient() {
+        return patient;
+    }
+
+    public Doctor getDoctor() {
+        return doctor;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public RoomType getRoomType() {
+        return roomType;
+    }
+
+    public String getObservations() {
+        return observations;
+    }
+
+    public HospitalizationStatus getStatus() {
+        return status;
+    }
+
+    public void setObservations(String observations) {
+        this.observations = observations;
+    }
+
 }
