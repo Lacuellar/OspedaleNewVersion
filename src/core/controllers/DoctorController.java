@@ -9,9 +9,11 @@ import org.json.JSONObject;
 /**
  * Controller for doctor-related operations.
  * Handles registration and profile updates.
+ *
+ * Field validation is delegated to UserValidator (SRP).
  * Views must NOT contain validation logic — delegate to this controller.
  */
-public class DoctorController {
+public class DoctorController implements IDoctorController {
 
     private final DataStore dataStore;
 
@@ -22,17 +24,19 @@ public class DoctorController {
     /**
      * Registers a new doctor with full validation.
      *
-     * Validations:
+     * Validations (via UserValidator — SRP):
      *   - Required fields must not be empty
      *   - ID must be exactly 12 numeric digits
+     *   - Passwords must match
      *   - Licence number must match: L-XXXXXXXXXX MTL  (L- + 10 digits + space + MTL)
      *   - Office must match: O-XXX  (O- + exactly 3 digits)
      *   - ID and username must be unique
      *
      * @return Response(CREATED) on success; Response(BAD_REQUEST/CONFLICT) on failure.
      */
+    @Override
     public Response registerDoctor(String idStr, String username, String firstname, String lastname,
-                                    String password, Specialty specialty,
+                                    String password, String confirmPassword, Specialty specialty,
                                     String licenceNumber, String assignedOffice) {
 
         if (isEmpty(firstname) || isEmpty(lastname) || isEmpty(idStr)
@@ -42,23 +46,18 @@ public class DoctorController {
                     "Please fill all required fields.");
         }
 
-        // ID: exactly 12 digits
-        if (!idStr.matches("\\d{12}")) {
-            return new Response(Response.BAD_REQUEST,
-                    "ID must be exactly 12 numeric digits (e.g., 123456789012).");
-        }
+        // Delegate field-format validation to UserValidator (SRP)
+        String idErr = UserValidator.validateId(idStr);
+        if (idErr != null) return new Response(Response.BAD_REQUEST, idErr);
 
-        // Licence format: L-XXXXXXXXXX MTL
-        if (!licenceNumber.matches("L-\\d{10} MTL")) {
-            return new Response(Response.BAD_REQUEST,
-                    "Licence number must follow format: L-XXXXXXXXXX MTL\n(e.g., L-1234567890 MTL)");
-        }
+        String pwErr = UserValidator.validatePasswordMatch(password, confirmPassword);
+        if (pwErr != null) return new Response(Response.BAD_REQUEST, pwErr);
 
-        // Office format: O-XXX (O- + 3 digits)
-        if (!assignedOffice.matches("O-\\d{3}")) {
-            return new Response(Response.BAD_REQUEST,
-                    "Office must follow format: O-XXX (e.g., O-101, O-204)");
-        }
+        String licenceErr = UserValidator.validateLicenceNumber(licenceNumber);
+        if (licenceErr != null) return new Response(Response.BAD_REQUEST, licenceErr);
+
+        String officeErr = UserValidator.validateOffice(assignedOffice);
+        if (officeErr != null) return new Response(Response.BAD_REQUEST, officeErr);
 
         long id;
         try {
@@ -90,9 +89,11 @@ public class DoctorController {
     /**
      * Updates an existing doctor's profile.
      * Only non-empty / non-null fields are applied (partial update).
+     * Delegates format validation to UserValidator (SRP).
      *
      * @return Response(OK) on success; Response(BAD_REQUEST/NOT_FOUND) on failure.
      */
+    @Override
     public Response updateDoctor(long doctorId, String firstname, String lastname,
                                   String password, String confirmPassword,
                                   Specialty specialty, String licenceNumber, String assignedOffice) {
@@ -105,9 +106,8 @@ public class DoctorController {
 
         // Password update
         if (!isEmpty(password)) {
-            if (!password.equals(confirmPassword)) {
-                return new Response(Response.BAD_REQUEST, "Passwords do not match.");
-            }
+            String pwErr = UserValidator.validatePasswordMatch(password, confirmPassword);
+            if (pwErr != null) return new Response(Response.BAD_REQUEST, pwErr);
             doctor.setPassword(password);
         }
 
@@ -116,19 +116,15 @@ public class DoctorController {
 
         // Licence validation
         if (!isEmpty(licenceNumber)) {
-            if (!licenceNumber.matches("L-\\d{10} MTL")) {
-                return new Response(Response.BAD_REQUEST,
-                        "Licence number must follow format: L-XXXXXXXXXX MTL");
-            }
+            String licenceErr = UserValidator.validateLicenceNumber(licenceNumber);
+            if (licenceErr != null) return new Response(Response.BAD_REQUEST, licenceErr);
             doctor.setLicenceNumber(licenceNumber.trim());
         }
 
         // Office validation
         if (!isEmpty(assignedOffice)) {
-            if (!assignedOffice.matches("O-\\d{3}")) {
-                return new Response(Response.BAD_REQUEST,
-                        "Office must follow format: O-XXX (e.g., O-101)");
-            }
+            String officeErr = UserValidator.validateOffice(assignedOffice);
+            if (officeErr != null) return new Response(Response.BAD_REQUEST, officeErr);
             doctor.setAssignedOffice(assignedOffice.trim());
         }
 

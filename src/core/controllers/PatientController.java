@@ -9,10 +9,12 @@ import org.json.JSONObject;
 
 /**
  * Controller for patient-related operations.
- * Handles registration, login lookup, and profile updates.
- * All business logic and validations live here — views only display results.
+ * Handles registration and profile updates.
+ *
+ * Field validation is delegated to UserValidator (SRP).
+ * Views must NOT contain validation logic — delegate to this controller.
  */
-public class PatientController {
+public class PatientController implements IPatientController {
 
     private final DataStore dataStore;
 
@@ -23,18 +25,19 @@ public class PatientController {
     /**
      * Registers a new patient with full validation.
      *
-     * Validations:
+     * Validations (via UserValidator — SRP):
      *   - Required fields must not be empty
      *   - ID must be exactly 12 numeric digits
      *   - Phone must be exactly 10 numeric digits (if provided)
      *   - Email must match standard format (if provided)
      *   - Passwords must match
      *   - ID must be unique across all users
-     *   - Username must be unique across all users
+     *   - Username must be unique
      *   - Birthdate must be valid YYYY-MM-DD
      *
      * @return Response(CREATED) on success; Response(BAD_REQUEST/CONFLICT) on failure.
      */
+    @Override
     public Response registerPatient(String idStr, String username, String firstname, String lastname,
                                     String password, String confirmPassword,
                                     String email, String birthdateStr, String genderStr,
@@ -47,44 +50,33 @@ public class PatientController {
                     "Please fill all required fields (firstname, lastname, ID, birthdate, username, password).");
         }
 
-        // ID: exactly 12 digits
-        if (!idStr.matches("\\d{12}")) {
-            return new Response(Response.BAD_REQUEST,
-                    "ID must be exactly 12 numeric digits (e.g., 123456789012).");
-        }
+        // Delegate field-format validation to UserValidator (SRP)
+        String idErr = UserValidator.validateId(idStr);
+        if (idErr != null) return new Response(Response.BAD_REQUEST, idErr);
 
-        // Phone: exactly 10 digits (optional)
-        long phone = 0L;
-        if (!isEmpty(phoneStr)) {
-            if (!phoneStr.matches("\\d{10}")) {
-                return new Response(Response.BAD_REQUEST,
-                        "Phone must be exactly 10 numeric digits (e.g., 3001234567).");
-            }
-            phone = Long.parseLong(phoneStr);
-        }
+        String pwErr = UserValidator.validatePasswordMatch(password, confirmPassword);
+        if (pwErr != null) return new Response(Response.BAD_REQUEST, pwErr);
 
-        // Email format (optional)
-        if (!isEmpty(email)) {
-            if (!email.matches("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}")) {
-                return new Response(Response.BAD_REQUEST,
-                        "Invalid email format. Use: example@domain.com");
-            }
-        }
+        String phoneErr = UserValidator.validatePhone(phoneStr);
+        if (phoneErr != null) return new Response(Response.BAD_REQUEST, phoneErr);
 
-        // Password match
-        if (!password.equals(confirmPassword)) {
-            return new Response(Response.BAD_REQUEST, "Passwords do not match.");
-        }
+        String emailErr = UserValidator.validateEmail(email);
+        if (emailErr != null) return new Response(Response.BAD_REQUEST, emailErr);
+
+        String userErr = UserValidator.validateUsername(username);
+        if (userErr != null) return new Response(Response.BAD_REQUEST, userErr);
 
         long id = Long.parseLong(idStr);
+        long phone = 0L;
+        if (!isEmpty(phoneStr)) {
+            phone = Long.parseLong(phoneStr.trim());
+        }
 
-        // Unique ID
+        // Uniqueness checks
         if (dataStore.userIdExists(id)) {
             return new Response(Response.CONFLICT,
                     "A user with ID " + id + " already exists.");
         }
-
-        // Unique username
         if (dataStore.usernameExists(username.trim())) {
             return new Response(Response.CONFLICT,
                     "Username '" + username + "' is already taken.");
@@ -111,15 +103,18 @@ public class PatientController {
         data.put("patientId", id);
         data.put("username", username);
         return new Response(Response.CREATED,
-                "Patient '" + firstname.trim() + " " + lastname.trim() + "' registered successfully. You can now log in.", data);
+                "Patient '" + firstname.trim() + " " + lastname.trim()
+                + "' registered successfully. You can now log in.", data);
     }
 
     /**
      * Updates an existing patient's profile.
      * Only non-empty fields are updated (partial update).
+     * Delegates format validation to UserValidator (SRP).
      *
      * @return Response(OK) on success; Response(BAD_REQUEST/NOT_FOUND) on failure.
      */
+    @Override
     public Response updatePatient(long patientId, String firstname, String lastname,
                                    String password, String confirmPassword,
                                    String email, String birthdateStr, String genderStr,
@@ -130,33 +125,29 @@ public class PatientController {
                     "Patient with ID " + patientId + " not found.");
         }
 
-        // Password update (both fields must be filled)
+        // Password update
         if (!isEmpty(password)) {
-            if (!password.equals(confirmPassword)) {
-                return new Response(Response.BAD_REQUEST, "Passwords do not match.");
-            }
+            String pwErr = UserValidator.validatePasswordMatch(password, confirmPassword);
+            if (pwErr != null) return new Response(Response.BAD_REQUEST, pwErr);
             patient.setPassword(password);
         }
 
-        if (!isEmpty(firstname))  patient.setFirstname(firstname.trim());
-        if (!isEmpty(lastname))   patient.setLastname(lastname.trim());
-        if (!isEmpty(address))    patient.setAddress(address.trim());
+        if (!isEmpty(firstname)) patient.setFirstname(firstname.trim());
+        if (!isEmpty(lastname))  patient.setLastname(lastname.trim());
+        if (!isEmpty(address))   patient.setAddress(address.trim());
 
         // Email validation
         if (!isEmpty(email)) {
-            if (!email.matches("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}")) {
-                return new Response(Response.BAD_REQUEST, "Invalid email format.");
-            }
+            String emailErr = UserValidator.validateEmail(email);
+            if (emailErr != null) return new Response(Response.BAD_REQUEST, emailErr);
             patient.setEmail(email.trim());
         }
 
         // Phone validation
         if (!isEmpty(phoneStr)) {
-            if (!phoneStr.matches("\\d{10}")) {
-                return new Response(Response.BAD_REQUEST,
-                        "Phone must be exactly 10 numeric digits.");
-            }
-            patient.setPhone(Long.parseLong(phoneStr));
+            String phoneErr = UserValidator.validatePhone(phoneStr);
+            if (phoneErr != null) return new Response(Response.BAD_REQUEST, phoneErr);
+            patient.setPhone(Long.parseLong(phoneStr.trim()));
         }
 
         // Birthdate

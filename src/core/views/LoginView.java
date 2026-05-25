@@ -4,23 +4,18 @@
  */
 package core.views;
 
-import core.views.PatientView;
-import core.views.DoctorView;
-import core.views.AdminView;
 import core.controllers.LoginController;
 import core.controllers.PatientController;
-import core.models.Response;
-import com.formdev.flatlaf.FlatDarkLaf;
-import java.awt.Color;
-import java.util.ArrayList;
-import javax.swing.UIManager;
 import core.models.Administrator;
 import core.models.Appointment;
+import core.models.DataStore;
 import core.models.Doctor;
 import core.models.Hospitalization;
 import core.models.Patient;
+import core.models.Response;
 import core.models.User;
-import core.models.DataStore;
+import java.awt.Color;
+import java.util.ArrayList;
 
 /**
  *
@@ -451,20 +446,14 @@ public class LoginView extends javax.swing.JFrame {
             return;
         }
 
-        // Find the authenticated user and open the appropriate view
+        // Find the authenticated user and open the appropriate view via ViewNavigator
         User selectedUser = DataStore.getInstance().getUserByUsername(username);
         if (selectedUser instanceof Administrator) {
-            AdminView admin = new AdminView(selectedUser, users, hospitalizations, appointments);
-            this.setVisible(false);
-            admin.setVisible(true);
+            ViewNavigator.getInstance().showAdmin(selectedUser);
         } else if (selectedUser instanceof Doctor) {
-            DoctorView doctor = new DoctorView(selectedUser, (Doctor) selectedUser, users, hospitalizations, appointments);
-            this.setVisible(false);
-            doctor.setVisible(true);
+            ViewNavigator.getInstance().showDoctor(selectedUser, (Doctor) selectedUser);
         } else if (selectedUser instanceof Patient) {
-            PatientView patient = new PatientView(selectedUser, (Patient) selectedUser, users, appointments, hospitalizations);
-            this.setVisible(false);
-            patient.setVisible(true);
+            ViewNavigator.getInstance().showPatient(selectedUser, (Patient) selectedUser);
         }
     }//GEN-LAST:event_Enter_buttonActionPerformed
 
@@ -509,27 +498,9 @@ public class LoginView extends javax.swing.JFrame {
     }//GEN-LAST:event_PatientReg_Save_ButtonActionPerformed
 
     private void PatientReg_Password_Confirmation_FieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientReg_Password_Confirmation_FieldActionPerformed
-        // TODO add your handling code here:
+        // Forward Enter key to the save button
+        PatientReg_Save_ButtonActionPerformed(null);
     }//GEN-LAST:event_PatientReg_Password_Confirmation_FieldActionPerformed
-
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        System.setProperty("flatlaf.useNativeLibrary", "false");
-
-        try {
-            UIManager.setLookAndFeel(new FlatDarkLaf());
-        } catch (Exception ex) {
-            System.err.println("Failed to initialize LaF");
-        }
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new LoginView().setVisible(true);
-            }
-        });
-    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField Address_Field;

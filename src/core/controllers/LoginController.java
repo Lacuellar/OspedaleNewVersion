@@ -9,7 +9,7 @@ import org.json.JSONObject;
  * Controller for authentication logic.
  * Views must NOT validate credentials — delegate everything to this controller.
  */
-public class LoginController {
+public class LoginController implements ILoginController {
 
     private final DataStore dataStore;
 
@@ -25,6 +25,7 @@ public class LoginController {
      *         Response(NOT_FOUND)                        if username does not exist
      *         Response(UNAUTHORIZED)                     if password is wrong
      */
+    @Override
     public Response login(String username, String password) {
         if (username == null || username.trim().isEmpty()) {
             return new Response(Response.BAD_REQUEST, "Username cannot be empty.");
