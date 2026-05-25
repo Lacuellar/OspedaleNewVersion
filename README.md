@@ -1,7 +1,9 @@
 # Ospedale — Sistema de Gestión Hospitalaria
 
 ## Integrantes
-- **[NOMBRE COMPLETO DEL ESTUDIANTE]** — NRC: [NÚMERO DE NRC]
+- **[Samuel Wilisch]** — NRC: [2040]
+- **[Luis Cuellar]** — NRC: [2040]
+- **[Natalia Vargas]** — NRC: [2040]
 
 ## Descripción
 Sistema de gestión hospitalaria desarrollado en Java con Swing.  
