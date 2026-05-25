@@ -5,21 +5,27 @@
 package core.views;
 
 import core.views.AdminView;
+import core.controllers.AppointmentController;
+import core.controllers.HospitalizationController;
+import core.controllers.PatientController;
+import core.models.Response;
 import java.awt.Color;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.List;
 import javax.swing.table.DefaultTableModel;
 import core.models.Administrator;
-import core.controllers.Appointment;
+import core.models.Appointment;
 import core.models.AppointmentStatus;
 import core.models.Doctor;
-import core.controllers.Hospitalization;
+import core.models.Hospitalization;
 import core.models.Patient;
 import core.models.RoomType;
 import core.models.Specialty;
 import core.models.User;
+import core.models.DataStore;
 
 /**
  *
@@ -49,6 +55,66 @@ public class PatientView extends javax.swing.JFrame {
         }
         this.setBackground(new Color(0, 0, 0, 0));
         this.setLocationRelativeTo(null);
+        // Mostrar nombre del paciente en la barra de título
+        this.setTitle("Ospedale — " + patient.getFirstname() + " " + patient.getLastname());
+        PatientView_Label.setText("PATIENT VIEW — " + patient.getFirstname() + " " + patient.getLastname());
+        // Hints de formato en labels
+        ReqCan_ReqMedApp_AppDate_Label.setText("Appointment date (YYYY-MM-DD)");
+        ReqCan_ReqMedApp_AppTime_Label.setText("Appointment time (HH:mm)");
+        ReqCan_Hosp_EstDateAdmission_Label.setText("Estimated admission date (YYYY-MM-DD)");
+        PatientView_ModInfo_Birthday_Label.setText("Birthdate (YYYY-MM-DD)");
+        // Poblar dropdowns
+        populateDoctorDropdown();
+        populateRoomTypeDropdown();
+        populateCancelAppointmentDropdown();
+        // Pre-rellenar campos de Modify Info con datos actuales
+        prefillPatientInfo();
+        // Cargar historial de citas automáticamente
+        PatientView_Refresh_ButtonActionPerformed(null);
+    }
+
+    private void populateDoctorDropdown() {
+        ReqCan_Hosp_AttendingDoctor_Dropdown.removeAllItems();
+        ReqCan_Hosp_AttendingDoctor_Dropdown.addItem("Select one");
+        for (User u : this.users) {
+            if (u instanceof Doctor) {
+                ReqCan_Hosp_AttendingDoctor_Dropdown.addItem(u.getId() + " — " + u.getFirstname() + " " + u.getLastname());
+            }
+        }
+    }
+
+    /** Extrae el ID numérico del formato "id — Name" de los comboboxes. */
+    private long extractId(String item) {
+        if (item == null || item.contains("Select")) throw new NumberFormatException("No selection");
+        return Long.parseLong(item.split(" — ")[0].trim());
+    }
+
+    private void populateRoomTypeDropdown() {
+        ReqCan_Hosp_DesiredRoomType_Dropdown.removeAllItems();
+        for (RoomType rt : RoomType.values()) {
+            ReqCan_Hosp_DesiredRoomType_Dropdown.addItem(rt.name());
+        }
+    }
+
+    private void prefillPatientInfo() {
+        if (patient == null) return;
+        PatientView_ModInfo_Firstname_Field.setText(patient.getFirstname());
+        PatientView_ModInfo_Lastname_Field.setText(patient.getLastname());
+        PatientView_ModInfo_email_Field.setText(patient.getEmail() != null ? patient.getEmail() : "");
+        PatientView_ModInfo_Address_Field.setText(patient.getAddress() != null ? patient.getAddress() : "");
+        if (patient.getPhone() != 0) PatientView_ModInfo_Phone_Field.setText(String.valueOf(patient.getPhone()));
+        if (patient.getBirthdate() != null) PatientView_ModInfo_Birthday_Field.setText(patient.getBirthdate().toString());
+        PatientView_ModInfo_EnterUser_Field.setText(patient.getUsername());
+        // 0=Select one, 1=Female, 2=Male
+        PatientView_ModInfo_Gender_Dropdown.setSelectedIndex(patient.getGender() ? 2 : 1);
+    }
+
+    private void populateCancelAppointmentDropdown() {
+        ReqCan_CancelAppointment_IDApp_Dropdown.removeAllItems();
+        ReqCan_CancelAppointment_IDApp_Dropdown.addItem("Select one");
+        for (Appointment a : patient.getAppointments()) {
+            ReqCan_CancelAppointment_IDApp_Dropdown.addItem(a.getId());
+        }
     }
 
     /**
@@ -789,43 +855,60 @@ public class PatientView extends javax.swing.JFrame {
     }//GEN-LAST:event_PatientView_Close_ButtonActionPerformed
 
     private void ReqCan_CancelAppointment_Cancel_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ReqCan_CancelAppointment_Cancel_ButtonActionPerformed
-        String idAppointment = ReqCan_CancelAppointment_IDApp_Dropdown.getItemAt(ReqCan_CancelAppointment_IDApp_Dropdown.getSelectedIndex());
-        for(Appointment ap: this.appointments){
-            if (ap.getId().equals(idAppointment)) {
-                ap.setStatus(AppointmentStatus.CANCELED);
-            }
+        String idAppointment = (String) ReqCan_CancelAppointment_IDApp_Dropdown.getSelectedItem();
+        if (idAppointment == null || "Select one".equals(idAppointment)) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Please select an appointment to cancel.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
         }
+        // Delegate to AppointmentController (enforces COMPLETED/CANCELED guard)
+        AppointmentController apptController = new AppointmentController();
+        Response response = apptController.cancelAppointment(idAppointment);
+
+        if (!response.isSuccess()) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "[" + response.getStatus() + "] " + response.getMessage(),
+                    "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        ReqCan_CancelAppointment_IDApp_Dropdown.removeItem(idAppointment);
+        PatientView_Refresh_ButtonActionPerformed(null);
+        javax.swing.JOptionPane.showMessageDialog(this,
+                response.getMessage(), "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
     }//GEN-LAST:event_ReqCan_CancelAppointment_Cancel_ButtonActionPerformed
 
     private void PatientView_ModInfo_SAVE_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientView_ModInfo_SAVE_ButtonActionPerformed
-        String firstname = PatientView_ModInfo_Firstname_Field.getText();
-        String lastname = PatientView_ModInfo_Lastname_Field.getText();
-        boolean gender = (PatientView_ModInfo_Gender_Dropdown.getSelectedIndex() == 0 ? null : (PatientView_ModInfo_Gender_Dropdown.getSelectedIndex() == 1));
-        String birth = PatientView_ModInfo_Birthday_Field.getText();
-        String address = PatientView_ModInfo_Address_Field.getText();
-        long phone = Long.parseLong(PatientView_ModInfo_Phone_Field.getText());
-        String email = PatientView_ModInfo_email_Field.getText();
-        String username = PatientView_ModInfo_EnterUser_Field.getText();
-        String password = PatientView_ModInfo_EnterPassword_Field.getText();
+        String firstname   = PatientView_ModInfo_Firstname_Field.getText().trim();
+        String lastname    = PatientView_ModInfo_Lastname_Field.getText().trim();
+        String birth       = PatientView_ModInfo_Birthday_Field.getText().trim();
+        String address     = PatientView_ModInfo_Address_Field.getText().trim();
+        String phoneStr    = PatientView_ModInfo_Phone_Field.getText().trim();
+        String email       = PatientView_ModInfo_email_Field.getText().trim();
+        String password    = PatientView_ModInfo_EnterPassword_Field.getText();
         String comPassword = PatientView_ModInfo_EnterPasswordConf_Field.getText();
-        LocalDate birthdate = LocalDate.of(Integer.parseInt(birth.substring(0, 4)), Integer.parseInt(birth.substring(5, 7)), Integer.parseInt(birth.substring(8)));
-        if (comPassword.equals(password)) {
-            for (User user : this.users) {
-                if (user.getId() == this.user.getId() && user instanceof Patient) {
-                    Patient userTemp = (Patient) user;
-                    userTemp.setAddress(address);
-                    userTemp.setBirthdate(birthdate);
-                    userTemp.setEmail(email);
-                    userTemp.setFirstname(firstname);
-                    userTemp.setGender(gender);
-                    userTemp.setLastname(lastname);
-                    userTemp.setPassword(password);
-                    userTemp.setPhone(phone);
-                    userTemp.setUsername(username);
-                }
-            }
-        }
+        // index 0="Select one", 1="Female", 2="Male"
+        int genderIdx = PatientView_ModInfo_Gender_Dropdown.getSelectedIndex();
+        String genderStr = (genderIdx == 0) ? "" : (genderIdx == 2 ? "Male" : "Female");
 
+        // Delegate ALL validation and update to PatientController
+        PatientController patientController = new PatientController();
+        Response response = patientController.updatePatient(
+                this.patient.getId(), firstname, lastname,
+                password, comPassword, email, birth, genderStr, phoneStr, address);
+
+        if (!response.isSuccess()) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "[" + response.getStatus() + "] " + response.getMessage(),
+                    "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        // Clear password fields for security
+        PatientView_ModInfo_EnterPassword_Field.setText("");
+        PatientView_ModInfo_EnterPasswordConf_Field.setText("");
+        // Update title to reflect name changes
+        PatientView_Label.setText("PATIENT VIEW — " + this.patient.getFirstname() + " " + this.patient.getLastname());
+        this.setTitle("Ospedale — " + this.patient.getFirstname() + " " + this.patient.getLastname());
+        javax.swing.JOptionPane.showMessageDialog(this,
+                response.getMessage(), "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
     }//GEN-LAST:event_PatientView_ModInfo_SAVE_ButtonActionPerformed
 
     private void PatientView_LogOut_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientView_LogOut_ButtonActionPerformed
@@ -849,7 +932,7 @@ public class PatientView extends javax.swing.JFrame {
 
         ReqCan_AppType_Dropdown.addItem("Select one");
         for (Specialty spec : Specialty.values()) {
-            ReqCan_AppType_Dropdown.addItem(spec.toString().replaceAll("_", " & "));
+            ReqCan_AppType_Dropdown.addItem(specialtyToDisplay(spec));
         }
     }//GEN-LAST:event_ReqCan_ReqMedApp_Specialty_ButtonActionPerformed
 
@@ -868,54 +951,179 @@ public class PatientView extends javax.swing.JFrame {
     }//GEN-LAST:event_ReqCan_ReqMedApp_Specialty_ButtonReqCan_ReqMedApp_Doctor_ButtonActionPerformed
 
     private void ReqCan_ReqMedApp_Create_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ReqCan_ReqMedApp_Create_ButtonActionPerformed
-        String appointDate = ReqCan_ReqMedApp_AppDate_Field.getText();
-        LocalDate appointmentDate = LocalDate.of(Integer.parseInt(appointDate.substring(0, 4)), Integer.parseInt(appointDate.substring(5, 7)), Integer.parseInt(appointDate.substring(8)));
-        LocalTime appointmentHour = LocalTime.of(Integer.parseInt(ReqCan_ReqMedApp_AppTime_Field.getText().substring(0, 2)), Integer.parseInt(ReqCan_ReqMedApp_AppTime_Field.getText().substring(3)));
-        LocalDateTime Finally = LocalDateTime.of(appointmentDate, appointmentHour);
-        String appointmentReason = ReqCan_ReqMedApp_AppReason_Field.getText();
-        long docId = Long.parseLong(ReqCan_AppType_Dropdown.getItemAt(ReqCan_AppType_Dropdown.getSelectedIndex()));
-        Doctor doctor = null;
-        for(User use:this.users){
-            if (use.getId() == docId) {
-                doctor = (Doctor) use;
+        try {
+            String appointDate = ReqCan_ReqMedApp_AppDate_Field.getText();
+            if (appointDate.isEmpty()) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Please enter a date (YYYY-MM-DD).", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                return;
             }
+            LocalDate appointmentDate = LocalDate.of(Integer.parseInt(appointDate.substring(0, 4)), Integer.parseInt(appointDate.substring(5, 7)), Integer.parseInt(appointDate.substring(8)));
+            if (appointmentDate.isBefore(LocalDate.now())) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Appointment date must be today or in the future.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            String timeStr = ReqCan_ReqMedApp_AppTime_Field.getText();
+            if (timeStr.isEmpty()) timeStr = "08:00";
+            LocalTime appointmentHour = LocalTime.of(Integer.parseInt(timeStr.substring(0, 2)), Integer.parseInt(timeStr.substring(3)));
+            LocalDateTime appointDateTime = LocalDateTime.of(appointmentDate, appointmentHour);
+            String appointmentReason = ReqCan_ReqMedApp_AppReason_Field.getText();
+
+            // Si se seleccionó por Doctor, el item es el ID del doctor (número)
+            // Si se seleccionó por Specialty, el item es nombre de specialty
+            String selected = ReqCan_AppType_Dropdown.getItemAt(ReqCan_AppType_Dropdown.getSelectedIndex());
+            if ("Select one".equals(selected)) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Please select a doctor or specialty.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            Doctor doctor = null;
+            Specialty specialty = null;
+            if (ReqCan_ReqMedApp_Specialty_ButtonReqCan_ReqMedApp_Doctor_Button.isSelected()) {
+                // El dropdown muestra "Firstname Lastname" del doctor
+                for (User use : this.users) {
+                    if (use instanceof Doctor) {
+                        String fullName = use.getFirstname() + " " + use.getLastname();
+                        if (fullName.equals(selected)) {
+                            doctor = (Doctor) use;
+                            specialty = doctor.getSpecialty();
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // El dropdown muestra nombre legible de specialty (ej: "General Medicine", "Traumatology & Orthopedics")
+                // parseSpecialty: reemplazar " & " → "_", " " → "_", todo mayúsculas
+                String specName = selected.replaceAll(" & ", "_").replaceAll(" ", "_").toUpperCase();
+                try {
+                    specialty = Specialty.valueOf(specName);
+                } catch (IllegalArgumentException ex) {
+                    javax.swing.JOptionPane.showMessageDialog(this, "Could not match specialty: " + selected, "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                // Buscar primer doctor disponible con esa specialty
+                for (User use : this.users) {
+                    if (use instanceof Doctor && ((Doctor)use).getSpecialty() == specialty) {
+                        doctor = (Doctor) use;
+                        break;
+                    }
+                }
+            }
+            if (doctor == null) {
+                javax.swing.JOptionPane.showMessageDialog(this, "No doctor found for the selection.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // index 0="Select one", 1="Remote"(false), 2="In-person"(true)
+            boolean appointmentType = (ReqCan_ReqMedApp_AppType_Dropdown.getSelectedIndex() == 2);
+            String appointId = DataStore.getInstance().generateAppointmentId(patient.getId());
+            Appointment newAppointment = new Appointment(appointId, patient, doctor, specialty, appointDateTime, appointmentReason, appointmentType);
+            DataStore.getInstance().addAppointment(newAppointment);
+            this.appointments.add(newAppointment);
+            // Actualizar dropdown de cancelar
+            ReqCan_CancelAppointment_IDApp_Dropdown.addItem(appointId);
+            // Limpiar campos tras crear cita
+            ReqCan_ReqMedApp_AppDate_Field.setText("");
+            ReqCan_ReqMedApp_AppTime_Field.setText("");
+            ReqCan_ReqMedApp_AppReason_Field.setText("");
+            ReqCan_AppType_Dropdown.setSelectedIndex(0);
+            ReqCan_ReqMedApp_AppType_Dropdown.setSelectedIndex(0);
+            javax.swing.JOptionPane.showMessageDialog(this, "Appointment created successfully!\nID: " + appointId + "\nDoctor: " + doctor.getFirstname() + " " + doctor.getLastname(), "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Error creating appointment: " + e.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
         }
-        boolean appointmentType = (ReqCan_ReqMedApp_AppType_Dropdown.getSelectedIndex() == 0 ? null : (ReqCan_ReqMedApp_AppType_Dropdown.getSelectedIndex() == 2 ));
-        this.appointments.add(new Appointment(appointDate, patient, doctor, doctor.getSpecialty(), Finally, appointDate, appointmentType));
     }//GEN-LAST:event_ReqCan_ReqMedApp_Create_ButtonActionPerformed
 
 
     private void PatientView_Refresh_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientView_Refresh_ButtonActionPerformed
-        // TODO add your handling code here:
-        Patient p = (Patient) user;
         DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
         model.setRowCount(0);
-        for (Appointment a : p.getAppointments()) {
-            model.addRow(new Object[]{a.getId(), a.getDatetime().toString(), a.getDoctor().getFirstname() + " " + a.getDoctor().getLastname(), a.getSpecialty().name(), a.isType() ? "In-person" : "Remote", a.getStatus().name()});
+        if (this.patient == null) return;
+        for (Appointment a : this.patient.getAppointments()) {
+            model.addRow(new Object[]{
+                a.getId(),
+                a.getDatetime().toString(),
+                a.getDoctor().getFirstname() + " " + a.getDoctor().getLastname(),
+                a.getSpecialty().name(),
+                a.isType() ? "In-person" : "Remote",
+                a.getStatus().name()
+            });
+        }
+        // Actualizar también dropdown de cancelar
+        ReqCan_CancelAppointment_IDApp_Dropdown.removeAllItems();
+        ReqCan_CancelAppointment_IDApp_Dropdown.addItem("Select one");
+        for (Appointment a : this.patient.getAppointments()) {
+            if (!a.getStatus().equals(AppointmentStatus.CANCELED)) {
+                ReqCan_CancelAppointment_IDApp_Dropdown.addItem(a.getId());
+            }
         }
     }//GEN-LAST:event_PatientView_Refresh_ButtonActionPerformed
 
     private void ReqCan_ReqHosp_Create_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ReqCan_ReqHosp_Create_ButtonActionPerformed
-        String hospitalizationReason = ReqCan_ReqHospReason_Field.getText();
-        long idDoctor = Long.parseLong(ReqCan_Hosp_AttendingDoctor_Dropdown.getItemAt(ReqCan_Hosp_AttendingDoctor_Dropdown.getSelectedIndex()));
-        Doctor doc = null;
-        for(User use: this.users){
-            if (use.id  == idDoctor ){
-                doc = (Doctor) use;
+        try {
+            String hospitalizationReason = ReqCan_ReqHospReason_Field.getText();
+            String selectedDoctor = ReqCan_Hosp_AttendingDoctor_Dropdown.getItemAt(ReqCan_Hosp_AttendingDoctor_Dropdown.getSelectedIndex());
+            if (selectedDoctor == null || "Select one".equals(selectedDoctor)) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Please select a doctor.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                return;
             }
+            long idDoctor = extractId(selectedDoctor);
+            Doctor doc = null;
+            for(User use : this.users){
+                if (use.getId() == idDoctor && use instanceof Doctor){
+                    doc = (Doctor) use;
+                }
+            }
+            if (doc == null) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Doctor not found.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            String dateStr = ReqCan_Hosp_EstDateAdmission_Field.getText();
+            if (dateStr.isEmpty()) dateStr = java.time.LocalDate.now().toString();
+            LocalDate stimateDate = LocalDate.of(Integer.parseInt(dateStr.substring(0, 4)), Integer.parseInt(dateStr.substring(5, 7)), Integer.parseInt(dateStr.substring(8)));
+            String roomStr = ReqCan_Hosp_DesiredRoomType_Dropdown.getItemAt(ReqCan_Hosp_DesiredRoomType_Dropdown.getSelectedIndex());
+            RoomType desireRoom;
+            try {
+                desireRoom = RoomType.valueOf(roomStr.toUpperCase());
+            } catch (Exception e) {
+                desireRoom = RoomType.IMC;
+            }
+            String observations = ReqCan_Hosp_Observations_Field.getText();
+            String hospId = DataStore.getInstance().generateHospitalizationId(patient.getId());
+            Hospitalization newHosp = new Hospitalization(hospId, this.patient, doc, stimateDate, hospitalizationReason, desireRoom, observations);
+            DataStore.getInstance().addHospitalization(newHosp);
+            this.hospitalizations.add(newHosp);
+            // Limpiar campos tras crear hospitalización
+            ReqCan_ReqHospReason_Field.setText("");
+            ReqCan_Hosp_EstDateAdmission_Field.setText("");
+            ReqCan_Hosp_Observations_Field.setText("");
+            ReqCan_Hosp_AttendingDoctor_Dropdown.setSelectedIndex(0);
+            javax.swing.JOptionPane.showMessageDialog(this, "Hospitalization requested successfully!\nID: " + hospId + "\nDoctor: " + doc.getFirstname() + " " + doc.getLastname(), "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
         }
-        LocalDate stimateDate = LocalDate.of(Integer.parseInt(ReqCan_Hosp_EstDateAdmission_Field.getText().substring(0, 4)),Integer.parseInt(ReqCan_Hosp_EstDateAdmission_Field.getText().substring(5, 7)), Integer.parseInt(ReqCan_Hosp_EstDateAdmission_Field.getText().substring(8)));
-        
-        RoomType desireRoom = RoomType.valueOf(ReqCan_Hosp_DesiredRoomType_Dropdown.getItemAt(ReqCan_Hosp_DesiredRoomType_Dropdown.getSelectedIndex()).toUpperCase());
-        String observations = ReqCan_Hosp_Observations_Field.getText();
-        this.hospitalizations.add(new Hospitalization(observations, this.patient, doc, stimateDate, observations, desireRoom, observations));
     }//GEN-LAST:event_ReqCan_ReqHosp_Create_ButtonActionPerformed
 
     private void ReqCan_AppType_DropdownActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ReqCan_AppType_DropdownActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_ReqCan_AppType_DropdownActionPerformed
 
-
+    /**
+     * Convierte un Specialty enum a nombre legible para mostrar en la UI.
+     */
+    private String specialtyToDisplay(core.models.Specialty spec) {
+        switch (spec) {
+            case GENERAL_MEDICINE:          return "General Medicine";
+            case CARDIOLOGY:                return "Cardiology";
+            case PEDIATRICS:                return "Pediatrics";
+            case NEUROLOGY:                 return "Neurology";
+            case TRAUMATOLOGY_ORTHOPEDICS:  return "Traumatology & Orthopedics";
+            case GYNECOLOGY_OBSTETRICS:     return "Gynecology & Obstetrics";
+            case DERMATOLOGY:               return "Dermatology";
+            case PSYCHIATRY:                return "Psychiatry";
+            case ONCOLOGY:                  return "Oncology";
+            case OPHTHALMOLOGY:             return "Ophthalmology";
+            case INTERNAL_MEDICINE:         return "Internal Medicine";
+            default:                        return spec.name();
+        }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel PatientView_AppointmentHist_Tab;

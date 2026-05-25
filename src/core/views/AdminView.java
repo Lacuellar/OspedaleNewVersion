@@ -4,14 +4,17 @@
  */
 package core.views;
 
+import core.controllers.DoctorController;
+import core.models.Response;
 import java.awt.Color;
 import java.util.ArrayList;
-import core.controllers.Appointment;
+import core.models.Appointment;
 import core.models.Doctor;
-import core.controllers.Hospitalization;
+import core.models.Hospitalization;
 import core.models.Patient;
 import core.models.Specialty;
 import core.models.User;
+import core.models.DataStore;
 
 /**
  *
@@ -33,6 +36,38 @@ public class AdminView extends javax.swing.JFrame {
         this.appointments = appointments;
         this.setBackground(new Color(0, 0, 0, 0));
         this.setLocationRelativeTo(null);
+        this.setTitle("Ospedale — Admin");
+        // Mostrar nombre del administrador en la barra de título
+        jLabel1.setText("ADMIN VIEW — " + user.getFirstname() + " " + user.getLastname());
+        // Poblar dropdowns de doctores y pacientes
+        populateDoctorDropdown();
+        populatePatientDropdown();
+    }
+
+    private void populateDoctorDropdown() {
+        jComboBox2.removeAllItems();
+        jComboBox2.addItem("Select one");
+        for (User u : this.users) {
+            if (u instanceof Doctor) {
+                jComboBox2.addItem(u.getId() + " — " + u.getFirstname() + " " + u.getLastname());
+            }
+        }
+    }
+
+    private void populatePatientDropdown() {
+        jComboBox3.removeAllItems();
+        jComboBox3.addItem("Select one");
+        for (User u : this.users) {
+            if (u instanceof Patient) {
+                jComboBox3.addItem(u.getId() + " — " + u.getFirstname() + " " + u.getLastname());
+            }
+        }
+    }
+
+    /** Extrae el ID numérico del formato "id — Name" de los comboboxes. */
+    private long extractId(String item) {
+        if (item == null || item.contains("Select")) throw new NumberFormatException("No selection");
+        return Long.parseLong(item.split(" — ")[0].trim());
     }
 
     /**
@@ -421,31 +456,82 @@ public class AdminView extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton9ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton9ActionPerformed
-        String firstname = jTextField3.getText();
-        String lastname = jTextField4.getText();
-        long id = Long.parseLong(jTextField5.getText());
-        String spec = jComboBox1.getItemAt(jComboBox1.getSelectedIndex());
-        String licenseNumber = jTextField6.getText();
-        String assignedOffice = jTextField7.getText();
-        String username = jTextField8.getText();
-        String password = jTextField9.getText();
-        String comPassword = jTextField10.getText();
-        Specialty specialty = Specialty.valueOf(spec.replaceAll(" &", "").replaceAll(" ", "_"));
-        if (password.equals(comPassword)) {
-            users.add(new Doctor(id, username, firstname, lastname, password, specialty, licenseNumber, assignedOffice));
+        String firstname = jTextField3.getText().trim();
+        String lastname  = jTextField4.getText().trim();
+        String idStr     = jTextField5.getText().trim();
+        String spec      = (String) jComboBox1.getSelectedItem();
+        String licence   = jTextField6.getText().trim();
+        String office    = jTextField7.getText().trim();
+        String username  = jTextField8.getText().trim();
+        String password  = jTextField9.getText();
+        String comPwd    = jTextField10.getText();
+
+        // Specialty must be selected before calling controller
+        if ("Select one".equals(spec)) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Please select a specialty.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
         }
+        Specialty specialty = parseSpecialty(spec);
+        if (specialty == null) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Invalid specialty selected.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Delegate ALL validation and registration to DoctorController
+        DoctorController doctorController = new DoctorController();
+        Response response = doctorController.registerDoctor(
+                idStr, username, firstname, lastname, password, specialty, licence, office);
+
+        // Confirm passwords before showing other errors
+        if (!password.equals(comPwd)) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Passwords do not match.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!response.isSuccess()) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "[" + response.getStatus() + "] " + response.getMessage(),
+                    "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Success — refresh UI
+        long id = response.getData().getLong("doctorId");
+        // Refresh users list from DataStore so new doctor appears
+        users.clear();
+        users.addAll(DataStore.getInstance().getAdmins());
+        users.addAll(DataStore.getInstance().getPatients());
+        users.addAll(DataStore.getInstance().getDoctors());
+        jComboBox2.addItem(id + " — " + firstname + " " + lastname);
+        // Clear fields
+        jTextField3.setText(""); jTextField4.setText(""); jTextField5.setText("");
+        jTextField6.setText(""); jTextField7.setText(""); jTextField8.setText("");
+        jTextField9.setText(""); jTextField10.setText("");
+        jComboBox1.setSelectedIndex(0);
+        javax.swing.JOptionPane.showMessageDialog(this,
+                response.getMessage(), "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
     }//GEN-LAST:event_jButton9ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        long idDoctor = Long.parseLong(jComboBox2.getItemAt(jComboBox2.getSelectedIndex()));
+        String selectedItem = jComboBox2.getItemAt(jComboBox2.getSelectedIndex());
         Doctor temp = null;
-        for(User use:this.users){
-            if(use.getId() == idDoctor)
-                temp =(Doctor) user;
+        try {
+            long idDoctor = extractId(selectedItem);
+            for(User use : this.users){
+                if(use.getId() == idDoctor && use instanceof Doctor)
+                    temp = (Doctor) use;
+            }
+        } catch (NumberFormatException e) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Please select a valid doctor.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
         }
-        DoctorView doctor = new DoctorView(user,temp, users, hospitalizations,appointments);
+        if (temp == null) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Doctor not found.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        DoctorView doctorView = new DoctorView(user, temp, users, hospitalizations, appointments);
         this.setVisible(false);
-        doctor.setVisible(true);
+        doctorView.setVisible(true);
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton10ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton10ActionPerformed
@@ -456,17 +542,43 @@ public class AdminView extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton10ActionPerformed
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-        long idPatient = Long.parseLong(jComboBox2.getItemAt(jComboBox2.getSelectedIndex()));
+        String selectedItem = jComboBox3.getItemAt(jComboBox3.getSelectedIndex());
         Patient temp = null;
-        for(User use:this.users){
-            if(use.getId() == idPatient)
-                temp =(Patient) user;
+        try {
+            long idPatient = extractId(selectedItem);
+            for(User use : this.users){
+                if(use.getId() == idPatient && use instanceof Patient)
+                    temp = (Patient) use;
+            }
+        } catch (NumberFormatException e) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Please select a valid patient.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
         }
-        PatientView patient = new PatientView(user,temp,users,appointments,hospitalizations);
+        if (temp == null) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Patient not found.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        PatientView patientView = new PatientView(user, temp, users, appointments, hospitalizations);
         this.setVisible(false);
-        patient.setVisible(true);
+        patientView.setVisible(true);
     }//GEN-LAST:event_jButton3ActionPerformed
 
+
+    /**
+     * Convierte el texto del combobox de specialty al enum Specialty.
+     */
+    private Specialty parseSpecialty(String displayName) {
+        if (displayName == null || "Select one".equals(displayName)) return null;
+        try {
+            String enumName = displayName.toUpperCase()
+                .replaceAll(" & ", "_")
+                .replaceAll("&", "_")
+                .replaceAll(" ", "_");
+            return Specialty.valueOf(enumName);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;

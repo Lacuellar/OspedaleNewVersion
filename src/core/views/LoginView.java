@@ -7,18 +7,20 @@ package core.views;
 import core.views.PatientView;
 import core.views.DoctorView;
 import core.views.AdminView;
+import core.controllers.LoginController;
+import core.controllers.PatientController;
+import core.models.Response;
 import com.formdev.flatlaf.FlatDarkLaf;
 import java.awt.Color;
-import java.time.LocalDate;
-import java.time.Month;
 import java.util.ArrayList;
 import javax.swing.UIManager;
 import core.models.Administrator;
-import core.controllers.Appointment;
+import core.models.Appointment;
 import core.models.Doctor;
-import core.controllers.Hospitalization;
+import core.models.Hospitalization;
 import core.models.Patient;
 import core.models.User;
+import core.models.DataStore;
 
 /**
  *
@@ -37,8 +39,20 @@ public class LoginView extends javax.swing.JFrame {
         this.setBackground(new Color(0, 0, 0, 0));
         this.setLocationRelativeTo(null);
 
+        // Cargar usuarios desde DataStore (JSON)
+        DataStore ds = DataStore.getInstance();
         this.users = new ArrayList<>();
-        this.users.add(new Administrator(0, "admin", "admin", "adnim", "admin123"));
+        this.users.addAll(ds.getAdmins());
+        this.users.addAll(ds.getPatients());
+        this.users.addAll(ds.getDoctors());
+        this.hospitalizations = ds.getHospitalizations();
+        this.appointments = ds.getAppointments();
+        // Soporte para tecla Enter en los campos de login
+        this.setTitle("Ospedale — Hospital Management System");
+        Enter_username_field.addActionListener(e -> Enter_password_field.requestFocusInWindow());
+        Enter_password_field.addActionListener(e -> Enter_buttonActionPerformed(null));
+        // Hints de formato
+        Birthdate_Label.setText("Birthdate (YYYY-MM-DD)");
     }
 
     /**
@@ -423,50 +437,75 @@ public class LoginView extends javax.swing.JFrame {
     }//GEN-LAST:event_Close_ButtonActionPerformed
 
     private void Enter_buttonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Enter_buttonActionPerformed
-        // TODO add your handling code here:
-        User selectedUser = null;
-        for (User user : this.users) {
-            if (Enter_username_field.getText().equals(user.getUsername())) {
-                selectedUser = user;
-                if (selectedUser.getPassword().equals(Enter_password_field.getText())) {
-                    if (selectedUser instanceof Administrator ) {
-                        AdminView admin = new AdminView(selectedUser,users,hospitalizations, appointments);
-                        this.setVisible(false);
-                        admin.setVisible(true);
-                    }
-                    else if (selectedUser instanceof Doctor ) {
-                        DoctorView doctor = new DoctorView(selectedUser,(Doctor)selectedUser,users,hospitalizations,appointments);
-                        this.setVisible(false);
-                        doctor.setVisible(true);
-                    }
-                    else {
-                        PatientView patient = new PatientView(selectedUser,(Patient) selectedUser,users,appointments, hospitalizations);
-                        this.setVisible(false);
-                        patient.setVisible(true);
-                    }
-                }
-            }
+        String username = Enter_username_field.getText().trim();
+        String password = Enter_password_field.getText();
+
+        // Delegate credential validation to LoginController
+        LoginController loginController = new LoginController();
+        Response response = loginController.login(username, password);
+
+        if (!response.isSuccess()) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "[" + response.getStatus() + "] " + response.getMessage(),
+                    "Login Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
         }
 
+        // Find the authenticated user and open the appropriate view
+        User selectedUser = DataStore.getInstance().getUserByUsername(username);
+        if (selectedUser instanceof Administrator) {
+            AdminView admin = new AdminView(selectedUser, users, hospitalizations, appointments);
+            this.setVisible(false);
+            admin.setVisible(true);
+        } else if (selectedUser instanceof Doctor) {
+            DoctorView doctor = new DoctorView(selectedUser, (Doctor) selectedUser, users, hospitalizations, appointments);
+            this.setVisible(false);
+            doctor.setVisible(true);
+        } else if (selectedUser instanceof Patient) {
+            PatientView patient = new PatientView(selectedUser, (Patient) selectedUser, users, appointments, hospitalizations);
+            this.setVisible(false);
+            patient.setVisible(true);
+        }
     }//GEN-LAST:event_Enter_buttonActionPerformed
 
     private void PatientReg_Save_ButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientReg_Save_ButtonActionPerformed
-        String firstname = Firstname_field.getText();
-        String lastname = Lastname_field.getText();
-        long id = Long.parseLong(ID_field.getText());
-        boolean gender = (Gender_dropdowm.getSelectedIndex() == 0 ? null : (Gender_dropdowm.getSelectedIndex() == 1 ));
-        String birth = Birthdate_Field.getText();
-        String address = Address_Field.getText();
-        long phone = Long.parseLong(Phone_Field.getText());
-        String email = Email_Field.getText();
-        String user = PatientReg_User_Field.getText();
-        String password = PatientReg_Password_Field.getText();
+        String firstname  = Firstname_field.getText().trim();
+        String lastname   = Lastname_field.getText().trim();
+        String idStr      = ID_field.getText().trim();
+        String birth      = Birthdate_Field.getText().trim();
+        String address    = Address_Field.getText().trim();
+        String phoneStr   = Phone_Field.getText().trim();
+        String email      = Email_Field.getText().trim();
+        String username   = PatientReg_User_Field.getText().trim();
+        String password   = PatientReg_Password_Field.getText();
         String comPassword = PatientReg_Password_Confirmation_Field.getText();
-        LocalDate birthdate = LocalDate.of(Integer.parseInt(birth.substring(0, 4)), Integer.parseInt(birth.substring(5, 7)), Integer.parseInt(birth.substring(8)));
-        if (comPassword.equals(password)) {
-            users.add(new Patient(id, user, firstname, lastname, password, email, birthdate, gender, phone, address));
+        // index 0="Select one", 1="Female"(false), 2="Male"(true)
+        String genderStr  = (Gender_dropdowm.getSelectedIndex() == 2) ? "Male" : "Female";
+
+        // Delegate ALL validation and registration to PatientController
+        PatientController patientController = new PatientController();
+        Response response = patientController.registerPatient(
+                idStr, username, firstname, lastname, password, comPassword,
+                email, birth, genderStr, phoneStr, address);
+
+        if (!response.isSuccess()) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "[" + response.getStatus() + "] " + response.getMessage(),
+                    "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
         }
-        
+
+        // Success — update local users list and clear fields
+        Patient newPatient = DataStore.getInstance().findPatientById(response.getData().getLong("patientId"));
+        if (newPatient != null) users.add(newPatient);
+
+        Firstname_field.setText(""); Lastname_field.setText(""); ID_field.setText("");
+        Birthdate_Field.setText(""); Address_Field.setText(""); Phone_Field.setText("");
+        Email_Field.setText(""); PatientReg_User_Field.setText("");
+        PatientReg_Password_Field.setText(""); PatientReg_Password_Confirmation_Field.setText("");
+        Gender_dropdowm.setSelectedIndex(0);
+        javax.swing.JOptionPane.showMessageDialog(this,
+                response.getMessage(), "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
     }//GEN-LAST:event_PatientReg_Save_ButtonActionPerformed
 
     private void PatientReg_Password_Confirmation_FieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PatientReg_Password_Confirmation_FieldActionPerformed
